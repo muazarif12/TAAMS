@@ -28,10 +28,10 @@ const teacherSchema = new mongoose.Schema({
     department: {
         type: String,
     },
-    coursesTeaching: {
-        type: [String],
-        required: false,
-    },
+    courses: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'course'
+    }],
     isDeleted: {
         type: Boolean,
         default: false,
