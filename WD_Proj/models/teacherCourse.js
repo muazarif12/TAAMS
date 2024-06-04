@@ -11,6 +11,7 @@ const teacherCourseSchema = new mongoose.Schema({
         ref: 'course',
         required: true
     },
+    //add sectionID
     
 });
 

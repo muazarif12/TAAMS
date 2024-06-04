@@ -28,12 +28,11 @@ const slotSchema = new mongoose.Schema({
 
     sectionId: {
         type: String,
-        required: true,
+        required: false,
     },
      TAassigned: {
         type: Boolean,
         default: false,
-        required: true,
     },
     description:{
         type: String,

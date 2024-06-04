@@ -10,6 +10,33 @@ var express = require("express");
 var router = express.Router();
 
 
+router.get("/getCoursesByTeacher", async (req, res) => {
+    try {
+      // Get the teacher's email from the request user
+      const { email } = req.user;
+  
+      // Find the teacher's ID based on the email
+      const teacherDoc = await teacher.findOne({ email: email });
+      if (!teacherDoc) return res.status(404).json({ msg: "Teacher not found" });
+  
+      // Find all the courses assigned to the teacher
+      const teacherCourses = await teacherCourse.find({ teacher: teacherDoc._id });
+  
+      // Extract the course IDs from the teacherCourses
+      const courseIds = teacherCourses.map((tc) => tc.course);
+  
+      // Find the courses based on the course IDs
+      const courses = await course.find({ _id: { $in: courseIds } });
+  
+      return res.json({ courses });
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({ error: "Internal Server Error" });
+    }
+  });
+
+
+
 router.post("/getSlotbySectionId", async (req, res) => {
     try{
         const {sectionId} = req.body
@@ -34,28 +61,35 @@ router.use(async (req, res, next) => {
 // teachers will create slots for the course they is teaching 
 // 
 router.post("/createSlot", async (req, res) => {
-    try{
-        const {sectionId, courseID} = req.body 
-        
-        let cv = await course.findOne({courseID: courseID})
-        if(!cv) return res.json({msg: "Course not found"})
+    try {
+        const { sectionId, courseId } = req.body;
 
-        let user = await teacher.findOne({email: req.user.email})
-        if(!user) return res.json({msg: "Teacher not found"})
+        // Find the course directly using its ID
+        let cv = await course.findById(courseId);
+        if (!cv) return res.json({ msg: "Course not found" });
 
-        let tcv = await teacherCourse.findOne({teacher: user._id, course: cv._id})
-        if(!tcv) return res.json({msg: "Course not assigned to teacher"})
+        let user = await teacher.findOne({ email: req.user.email });
+        if (!user) return res.json({ msg: "Teacher not found" });
 
-        let sv = await slot.findOne({sectionId})
-        if(sv) return res.json({msg: "Slot for this sectionId already exists"})
+        let tcv = await teacherCourse.findOne({ teacher: user._id, course: cv._id });
+        if (!tcv) return res.json({ msg: "Course not assigned to teacher" });
 
-        await slot.create({...req.body, teacher: user._id, course: cv._id, teacherName: user.firstName + " " + user.lastName, teacherEmail: user.email})
+        // Create the slot with the provided data
+        await slot.create({
+            ...req.body,
+            teacher: user._id,
+            course: cv._id,
+            teacherName: user.firstName + " " + user.lastName,
+            teacherEmail: user.email
+        });
 
-        return res.json({msg: "SLOT CREATED"})
-    }catch(error){
-        console.error(error)
+        return res.json({ msg: "SLOT CREATED" });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ error: "Internal Server Error" });
     }
 });
+
 
 // teacher can delete slot
 router.post("/deleteSlot", async (req, res) => {
@@ -99,31 +133,32 @@ router.patch("/updateSlot/:sectionId", async (req, res) => {
 });
 
 // teacher can view TA applications for their slots
-router.post("/viewApplicationsbySectionId", async (req, res) => {
-    try{
-        const {sectionId} = req.body
-        
-        let sv = await slot.find({ sectionId : sectionId}).populate({
-            path: "applications",
-            select: " -_id studentName studentEmail sectionId status studentStatement favourite" // Add the fields you want to select
+// GET API to retrieve all applications for the slots created by the teacher
+router.get('/viewApplications', async (req, res) => {
+    try {
+        const user = await teacher.findOne({ email: req.user.email });
+
+        if (!user) return res.status(404).json({ msg: "Teacher not found" });
+
+        const slots = await slot.find({ teacher: user._id }).populate({
+            path: 'applications',
+            select: 'studentName slot studentEmail sectionId status studentStatement favourite -_id'
         });
-        
-        if (!sv || sv.length === 0) return res.json({ msg: "No slots found" });
-        
-        //console.log("yooo");
-        
+
+        if (!slots || slots.length === 0) return res.json({ msg: "No slots found" });
+
         let apps = [];
-        for (let slot of sv) {
-            for (let app of slot.applications) {
-                
+        for (let s of slots) {
+            for (let app of s.applications) {
                 apps.push(app);
-                
             }
         }
-        if (apps.length === 0) return res.json({ msg: "No favourites found" });
+
+        if (apps.length === 0) return res.json({ msg: "No applications found" });
         return res.json({ apps });
-    }catch(error){
-        console.error(error)
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ msg: "Server error" });
     }
 });
 
@@ -140,43 +175,44 @@ router.post("/viewStudentProfile", async (req, res) => {
 });
 
 // teacher can accept applications
-router.patch("/acceptApplication/:sectionId/:studentEmail", async (req, res) => {
+router.patch("/acceptApplication/:slotId/:studentEmail", async (req, res) => {
     try {
-        const { sectionId, studentEmail } = req.params;
+        const { slotId, studentEmail } = req.params;
 
-        let sv = await slot.findOne({ sectionId: sectionId }).populate("applications");
+        let sv = await slot.findById(slotId).populate("applications");
         if (!sv) return res.json({ msg: "Slot not found" });
-        
+
         let app = sv.applications.find(application => application.studentEmail === studentEmail);
         if (!app) return res.json({ msg: "Application not found" });
         if (app.status === "accepted") return res.json({ msg: "Application already accepted" });
-        
-        
-        await app.updateOne({ status: "accepted" });
+
+        await application.findByIdAndUpdate(app._id, { status: "accepted" });
         return res.json({ msg: "Application accepted" });
     } catch (error) {
         console.error(error);
+        return res.status(500).json({ msg: 'Server error' });
     }
 });
 
 // let application = sv.applications.find(studentEmail:studentEmail);
 
 // teacher can reject applications
-router.patch("/rejectApplication/:sectionId/:studentEmail", async (req, res) => {
+router.patch("/rejectApplication/:slotId/:studentEmail", async (req, res) => {
     try {
-        const { sectionId, studentEmail } = req.params;
-        
-        let sv = await slot.findOne({ sectionId: sectionId }).populate("applications");
+        const { slotId, studentEmail } = req.params;
+
+        let sv = await slot.findById(slotId).populate("applications");
         if (!sv) return res.json({ msg: "Slot not found" });
-        
+
         let app = sv.applications.find(application => application.studentEmail === studentEmail);
         if (!app) return res.json({ msg: "Application not found" });
         if (app.status === "accepted") return res.json({ msg: "Application already accepted" });
-        
-        await app.updateOne({ status: "rejected" });
+
+        await application.findByIdAndUpdate(app._id, { status: "rejected" });
         return res.json({ msg: "Application rejected" });
     } catch (error) {
         console.error(error);
+        return res.status(500).json({ msg: 'Server error' });
     }
 });
 

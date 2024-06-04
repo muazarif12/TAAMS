@@ -1,52 +1,46 @@
 const mongoose = require('mongoose');
 
 const applicationSchema = new mongoose.Schema({
-    
-    studentName:   {
+    studentName: {
         type: String,
         required: true
     },
-
     studentEmail: {
         type: String,
         required: true
     },
-
-    slot : {
+    slot: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'slot',
         required: true
     },
-    sectionId: {
-        type: String,
+    // sectionId: {
+    //     type: String,
+    //     required: false
+    // },
+    course: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'course',
         required: true
     },
-
-
-    status : {
+    status: {
         type: String,
         default: "Pending",
         required: true
     },
-
-    studentStatement : {
+    studentStatement: {
         type: String,
         required: true
     },
-
-    favourite : {
+    favourite: {
         type: Boolean,
         default: false,
         required: true
     },
-
     createdAt: {
         type: Date,
         default: Date.now,
     }
-
 });
 
-const application = mongoose.model('application', applicationSchema);
-
-module.exports = application;
+module.exports = mongoose.model('application', applicationSchema);

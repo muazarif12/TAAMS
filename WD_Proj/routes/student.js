@@ -107,27 +107,40 @@ router.get('/getAllTeachers', async (req, res) => {
 });
 
 
+// POST API for students to apply for a slot directly using slot ID
 router.post('/applyforSlot', async (req, res) => {
     try {
-        const { sectionId } = req.body;
-        let user = await student.findOne({ email: req.user.email });
-        let sv = await slot.findOne({ sectionId });
+        const { slotId, studentStatement } = req.body;
+        const user = await student.findOne({ email: req.user.email });
+
+        if (!user) return res.status(404).json({ msg: 'Student not found' });
+
+        const sv = await slot.findOne({ _id: slotId }).populate('course');
+
         if (!sv) return res.json({ msg: 'Slot not open for this Section' });
-        let app1 = await application.findOne({ slot: sv._id, studentEmail: user.email});  
-        if (app1) return res.json({ msg: 'Application already exists' });    
-        let newApp = await application.create({ studentName: user.firstName + " " + user.lastName,
-        studentEmail: user.email,
-        sectionId: sv.sectionId,
-        studentStatement: req.body.studentStatement,
-        slot: sv._id });
-        
+
+        const app1 = await application.findOne({ slot: sv._id, studentEmail: user.email });
+
+        if (app1) return res.json({ msg: 'Application already exists' });
+
+        const newApp = await application.create({
+            studentName: `${user.firstName} ${user.lastName}`,
+            studentEmail: user.email,
+            studentStatement,
+            slot: sv._id,
+            course: sv.course // Add the course reference from the slot
+        });
+
         sv.applications.push(newApp._id);
         await sv.save();
+
         return res.json({ msg: 'APPLICATION CREATED' });
     } catch (error) {
         console.error(error);
+        return res.status(500).json({ msg: 'Server error' });
     }
 });
+
 
 router.post('/deleteApplication', async (req, res) => {
     try {

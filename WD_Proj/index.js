@@ -12,7 +12,7 @@ app.use(cors());
 
 (async () => {
     try {
-        await mongoose.connect("mongodb://localhost:27017/TAAMS")
+        await mongoose.connect("mongodb+srv://alikhurram360:3Td5MAJ-jFhm_.D@cluster0.ubqhk0g.mongodb.net/TAAMS")
         console.log('Connection has been established successfully.');
     } catch (error) {
         console.error('Unable to connect to the database:', error);
