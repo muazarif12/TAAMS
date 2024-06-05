@@ -26,7 +26,7 @@ router.post("/getSlotbySectionId", async (req, res) => {
 
 
 router.use(async (req, res, next) => {
-    if(!req.user.role == "teacher") return res.json({ msg: "NOT TEACHER" })
+    if(req.user.role != "teacher") return res.json({ msg: "NOT TEACHER" })
     else next()
 })
 

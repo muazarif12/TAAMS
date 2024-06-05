@@ -28,6 +28,18 @@ router.post("/addCourse", async (req, res) => {
         console.error(error);
     }
 });
+
+router.get('/totals', async (req, res) => {
+    try {
+      const studentCount = await student.countDocuments();
+      const teacherCount = await teacher.countDocuments();
+      const courseCount = await course.countDocuments();
+  
+      res.json({ students: studentCount, teachers: teacherCount, courses: courseCount });
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to fetch totals' });
+    }
+  });
 // router.post("/addCourse", async (req, res) => {
 //     try {
 //         const {courseID, teachers} = req.body;  
@@ -75,9 +87,21 @@ router.get("/getCourses", async (req, res) => {
 
 router.get('/getTeachers', async (req, res) => {
     try {
-        let tv = await teacher.find({}).select('_id email firstName lastName');
+        let tv = await teacher.find({}).select('_id email firstName lastName department');
         if (!tv) return res.json({ msg: 'No teachers found' });
         return res.json({ tv });
+    } catch (error) {
+        console.error(error);
+    }
+});
+
+router.post("/deleteTeacher", async (req, res) => {
+    try {
+        const { email } = req.body;
+        let tv = await teacher.findOne({ email });
+        if (!tv) return res.json({ msg: "Teacher not found" });
+        await teacher.deleteOne({ email });
+        return res.json({ msg: "TEACHER DELETED" });
     } catch (error) {
         console.error(error);
     }
